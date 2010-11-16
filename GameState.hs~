@@ -1,0 +1,112 @@
+module GameState where
+import Brick
+import Breaker
+import Paddle
+import MAGPoint
+import MAGColor
+import Graphics.Rendering.OpenGL
+import Data.Maybe
+
+data GameState = GameState { bricks  :: Bricks,
+                             breaker :: Breaker,
+                             paddle  :: Paddle,
+                             lastUpdate :: StateUpdate
+                           } deriving (Show)
+
+
+data StateUpdate = MoveBreaker {updateBreaker :: Breaker} 
+                   | BreakerBrickCollision {updatedBricks :: Bricks,
+                                            updateBreaker :: Breaker
+                                           } 
+                   | BreakerPaddleCollision {updateBreaker :: Breaker}
+                   | MovePaddle
+                   deriving (Show)
+
+updateState :: StateUpdate -> GameState -> GameState
+updateState (MoveBreaker move) game = game{breaker = move}
+updateState (BreakerBrickCollision bricks break) game = 
+  game{breaker = break, bricks = bricks}
+updateState (BreakerPaddleCollision move) game = game{breaker = move}
+
+determineUpdate :: GameState -> StateUpdate
+determineUpdate game =
+  if (isJust rs)
+  then fromJust rs
+  else fromJust $ breakerBrickCollision game
+  where rs = breakerPaddleCollision game
+
+breakerPaddleCollision :: GameState -> Maybe StateUpdate
+breakerPaddleCollision (GameState {breaker = b@(Breaker{center = c, radius = r}), 
+                                   paddle = p}) =
+  if (collisionPaddle c r p)
+  then Just $ BreakerPaddleCollision $ move b True
+  else Nothing
+  
+
+collisionPaddle :: MAGPoint -> GLfloat -> Paddle -> StateUpdate -> Bool
+collisionPaddle (MAGPoint x y z) r (Paddle {paddlePoints = ps}) up = 
+  (((x+r >= xmin) && (x+r <= xmax) && (y+r >= ymin) && (y+r <= ymax)) ||
+  ((x-r >= xmin) && (x-r <= xmax) && (y-r >= ymin) && (y-r <= ymax))) && 
+  isSame up
+  where (xs, ys, zs) = unzip3 (map toTuple ps)
+        xmin = minimum xs
+        xmax = maximum xs
+        ymin = minimum ys
+        ymax = maximum ys
+        isSame (BreakerPaddleCollision _) = True
+        isSame _ = False
+
+breakerBrickCollision :: GameState -> Maybe StateUpdate
+breakerBrickCollision (GameState {breaker = breaker@(Breaker{center = ps,
+                                                             radius = r}), 
+                                  bricks = bricks}) =
+  if hit'
+  then Just $ BreakerBrickCollision updatedBricks (move breaker hit')
+  else Just $ MoveBreaker $ move breaker hit'
+  where rs = unzip (map (hit ps r) bricks)
+        updatedBricks = filter removeBrick (fst rs)
+        hit' = or (snd rs)
+
+myPaddle = Paddle (MAGColor 1 0 0 0) [(MAGPoint 0 0 0),
+                                    (MAGPoint 0 1 0),
+                                    (MAGPoint 15 1 0),
+                                    (MAGPoint 15 0 0)]
+
+myColors = [(fromRGB 255 0 0), (fromRGB 255 166 0), (fromRGB 255 255 0),
+            (fromRGB 0 255 0), (fromRGB 0 0 255), (fromRGB 160 35 240),
+            (fromRGB 255 255 255), (fromRGB 127 127 127)]
+
+myBreaker = Breaker (fromRGB 255 127 255)
+                    (MAGPoint 5 5 0)
+                    2.5
+                    True
+                    0.0
+                    0.25
+
+level1 = GameState (createBoard myColors (MAGPoint 0 80 0)) myBreaker myPaddle
+
+createBoard :: MAGColors -> MAGPoint -> Bricks
+createBoard colorList startPos = do
+  concat (createBoardH colorList
+    ((makePointList colorList startPos) :: MAGPoints))
+  where
+    createBoardH [] [] = []
+    createBoardH (c : cs) (p : ps) = (makeRow p c) : createBoardH cs ps
+
+makePointList :: MAGColors -> MAGPoint -> MAGPoints
+makePointList [] _ = []
+makePointList (c : cs) point = point : makePointList cs (dy point (-5))
+
+makeRow :: MAGPoint -> MAGColor -> Bricks
+makeRow pos@(MAGPoint {x = x, y = y, z = z}) color =
+  if (x == 80)
+  then []
+  else (Brick {brickColor = color,
+               points = (makePoints pos),
+               draw = True}) : makeRow (dx pos 10) color
+
+makePoints :: MAGPoint -> MAGPoints
+makePoints point = [point,
+                    (dy point (-5)),
+                    (dy (dx point 10) (-5)),
+                    (dx point 10)]

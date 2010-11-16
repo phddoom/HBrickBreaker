@@ -1,0 +1,48 @@
+name: HBrickBreaker
+version: 0.0.1
+cabal-version: -any
+build-type: Simple
+license: AllRightsReserved
+license-file: ""
+copyright:
+maintainer:
+build-depends: GLUT -any, OpenGL -any, base -any
+stability:
+homepage:
+package-url:
+bug-reports:
+synopsis: A Breakout clone written in Haskell
+description: A Breakout clone written in Haskell
+category: game
+author: Mitchell Garvin
+tested-with:
+data-files:
+data-dir: ""
+extra-source-files:
+extra-tmp-files:
+ 
+executable: HBrickBreaker
+main-is: Main.hs
+buildable: True
+build-tools:
+cpp-options:
+cc-options:
+ld-options:
+pkgconfig-depends:
+frameworks:
+c-sources:
+extensions:
+extra-libraries:
+extra-lib-dirs:
+includes:
+install-includes:
+include-dirs:
+hs-source-dirs: .
+other-modules: GameState GameObjects Paddle MAGColor Breaker Brick
+               MAGPoint
+ghc-prof-options:
+ghc-shared-options:
+ghc-options:
+hugs-options:
+nhc98-options:
+jhc-options:
